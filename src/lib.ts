@@ -2,8 +2,6 @@ import Client from "bitcoin-core";
 import { crypto, networks, payments } from "bitcoinjs-lib";
 import { HDKey } from "@scure/bip32";
 
-import Base58 from "base-58";
-
 console.log("network", networks.regtest);
 const init = async () => {
   try {
@@ -84,11 +82,6 @@ const createAddressFromMasterWallet = (masterWallet: HDKey) => {
   // hex to string utf
 
   // convert buffer to uint8array then to string
-  const decode = Base58.decode(p2pk.pubkey);
-
-  const pubKeyBuffer = new Buffer(p2pk.pubkey);
-  const stringVersion = pubKeyBuffer.toString("utf-8");
-  console.log("stringVersion", stringVersion);
 
   // tap script
   // console.log("pubkeyString", pubkeyString);
@@ -109,3 +102,5 @@ const hdWalletControl = async () => {
 };
 
 hdWalletControl();
+
+// okay so just to get something going i want to
