@@ -1,106 +1,51 @@
-import Client from "bitcoin-core";
 import { crypto, networks, payments } from "bitcoinjs-lib";
 import { HDKey } from "@scure/bip32";
+import {
+  generateToAddress,
+  getBlockChainInfo,
+  listUnspent,
+} from "./rpcCommands";
+import { getP2pkh } from "./wallet";
 
-console.log("network", networks.regtest);
-const init = async () => {
+const startUpFaucet = async () => {
   try {
-    const client = new Client({
-      network: "regtest",
-      username: "setbern",
-      password: "setbern",
-      port: 18443,
-      wallet: "mywalletTest2",
+    // ensure the bitcoind is up and running by checking the chaintip
+    const blockChainInfo = await getBlockChainInfo();
+
+    console.log("blockChainInfo", blockChainInfo);
+    // assuming it didn't err out then we can prooced
+
+    // create a faucet wallet
+    const wallet = getP2pkh("faucet");
+
+    if (!wallet) throw new Error("no wallet");
+
+    console.log("wallet", wallet);
+
+    /*
+    // send some coins to the faucet wallet
+    const sendToAddress = await generateToAddress({
+      address: wallet,
+      nblocks: 101,
+    });
+    */
+
+    // in order to check how much the faucet have we have to get all the unspent utxos for this from block to  to block
+
+    // refetch the blockchain info
+    const blockChainInfo2 = await getBlockChainInfo();
+
+    const listunspent = await listUnspent({
+      minconf: 0,
+      maxconf: 9999999,
+      addresses: [wallet],
     });
 
-    const chaintip = await client.getChainTips();
-    console.log("chaintip");
-    console.log(chaintip);
-    //const createWallet = await client.createWallet("mywalletTest2");
-    console.log("createWallet");
-    const getWalletInfo = await client.getNewAddress("", "bech32");
-    console.log("getWalletInfo");
-    console.log(getWalletInfo);
-
-    const mineBlocksToCreatedWallet = await client.generateToAddress(
-      101,
-      getWalletInfo
-    );
-
-    console.log("mineBlocksToCreatedWallet", mineBlocksToCreatedWallet);
-
-    const getPrivKeys = await client.dumpPrivKey(getWalletInfo);
-  } catch (error) {
-    console.error(error);
+    console.log("listunspent", listunspent);
+    //console.log("sendToAddress", sendToAddress);
+  } catch (err: any) {
+    throw new Error(err);
   }
 };
 
-//init();
-
-// we need to create a master "wallet/private key" for each user so they can do as they please and that way we can derive the addresses from the master key for whatever needed
-// trying to get as close as possible to the real thing
-
-const createMasterWallet = (seed: string) => {
-  console.log("crypto", crypto);
-  const seedBuffer = crypto.sha256(Buffer.from(seed));
-  const root = HDKey.fromMasterSeed(seedBuffer);
-  console.log("root", root);
-  return root;
-};
-
-const createAddressFromMasterWallet = (masterWallet: HDKey) => {
-  // set the path to dervie the address from
-  const path = "m/44/1/0/0/1";
-  const derived = masterWallet.derive(path);
-  // convert uint8array to buffer
-  if (!derived.publicKey) throw new Error("no private key");
-
-  const buffer = Buffer.from(derived.publicKey);
-
-  console.log("buffer", buffer);
-
-  const p2pkh = payments.p2pkh({
-    pubkey: buffer,
-    network: networks.regtest,
-  });
-
-  console.log("p2pkh", p2pkh);
-  console.log("p2pkh.address", p2pkh.address);
-
-  const p2pk = payments.p2pk({
-    pubkey: buffer,
-    network: networks.regtest,
-  });
-
-  console.log("p2kh", p2pk);
-  //console.log("p2kh.address", p2kh.address);
-
-  if (!p2pk.pubkey) throw new Error("no pubkey");
-  console.log("p2kh.pubkey hex", p2pk.pubkey.toString("hex"));
-  console.log("p2pk pubkey ", p2pk.pubkey.toString("utf-8"));
-
-  // hex to string utf
-
-  // convert buffer to uint8array then to string
-
-  // tap script
-  // console.log("pubkeyString", pubkeyString);
-  // const p2tr = payments.p2tr({
-  //   pubkey: buffer,
-  //   network: networks.regtest,
-  // });
-};
-
-const hdWalletControl = async () => {
-  try {
-    const masterKey = createMasterWallet("myseed");
-    const masterKeyAddress = createAddressFromMasterWallet(masterKey);
-  } catch (err) {
-    console.log("hdWalletControl err");
-    console.log(err);
-  }
-};
-
-hdWalletControl();
-
-// okay so just to get something going i want to
+startUpFaucet();
