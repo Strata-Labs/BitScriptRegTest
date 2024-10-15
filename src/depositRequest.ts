@@ -408,7 +408,7 @@ export const createDepositScriptP2TROutput = async (
     // Add output for the deposit
     psbt.addOutput({
       value: BigInt(amount),
-      address: p2tr.address, // Use the P2TR output script
+      script: p2tr.pubkey, // Use the P2TR output script
     });
 
     // Calculate change and add change output if necessary
