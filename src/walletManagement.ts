@@ -11,6 +11,7 @@ import {
   TinySecp256k1Interface,
 } from "ecpair";
 import * as crypto from "crypto";
+import * as bip341 from "bitcoinjs-lib/src/payments/bip341";
 
 // You need to provide the ECC library. The ECC library must implement
 // all the methods of the `TinySecp256k1Interface` interface.
@@ -28,9 +29,12 @@ import {
   generateToAddress,
   getAddressesByLabel,
   getAddressInfo,
+  getBlock,
   getBlockChainInfo,
+  getBlockHash,
   getNewAddress,
   getNewAddressByLabel,
+  getRawTransaction,
   getTransactionStatus,
   getWalletDescriptor,
   getWalletInfo,
@@ -52,7 +56,10 @@ import {
   BitcoinNetwork,
   getP2pkh,
   getP2TR,
+  getP2WSH,
   getPrivateKeyFromP2tr,
+  getPrivateKeysFromSeed,
+  hexToUint8Array,
   privateKeyToWIF,
   uint8ArrayToHexString,
 } from "./wallet";
@@ -179,7 +186,7 @@ export const mineAndCheckId = async (txId: string) => {
     const blockChainInfo = await getBlockChainInfo();
     console.log("blockChainInfo", blockChainInfo);
 
-    await mineBlock(CURRENT_WORKING_WALLET, 20); // Mine 1 block
+    await mineBlock(CURRENT_WORKING_WALLET, 1000); // Mine 1 block
 
     const blockChainInfo2 = await getBlockChainInfo();
     console.log("blockChainInfo2", blockChainInfo2);
@@ -192,10 +199,91 @@ export const mineAndCheckId = async (txId: string) => {
   }
 };
 
+export const checkTxStatus = async (txId: string) => {
+  try {
+    const txStatus = await getTransactionStatus(txId);
+    console.log("Transaction Status:", txStatus);
+  } catch (err: any) {
+    throw new Error(err);
+  }
+};
+
+export const createP2trAddy = async (seed: string) => {
+  try {
+    const network: BitcoinNetwork = "regtest";
+
+    const privateKey = getPrivateKeysFromSeed(SIGNER_SEED_PHRASE);
+
+    const senderPrivKeyWIF = privateKeyToWIF(privateKey, network);
+    const _network = bitcoin.networks.regtest;
+
+    const keyPair = ECPair.fromWIF(senderPrivKeyWIF, _network);
+
+    const getP2TRRes = getP2TR(SIGNER_SEED_PHRASE);
+
+    //const internalPubkey = keyPair.publicKey.slice(1); // Extract x-only public key (Taproot internal key)
+
+    const internalPubkey = getP2TRRes.pubkey;
+    const merkleRootHash =
+      "5e06c836f5ed227d8c2397d8a5470e332da913be5f80d864b2b1bd68d7f92e85";
+
+    const merkleRootHashToUint8Array = hexToUint8Array(merkleRootHash);
+
+    const tweak = bip341.tapTweakHash(
+      internalPubkey,
+      merkleRootHashToUint8Array
+    );
+
+    const taprootPubKey = bip341.tweakKey(internalPubkey, tweak);
+
+    const p2tr = bitcoin.payments.p2tr({
+      pubkey: taprootPubKey.x,
+      network: _network,
+    });
+
+    console.log("P2TR Address:", p2tr.address);
+  } catch (err: any) {
+    throw new Error(err);
+  }
+};
+export const scanTxOutSetHelper = async () => {
+  try {
+    const signerInfo = getP2TR(SIGNER_SEED_PHRASE);
+    console.log("signerInfo", signerInfo);
+
+    console.log("signerInfo.address", signerInfo.address);
+    console.log("signerInfo.pubkey", signerInfo.pubkey);
+    const getBlockRes = await getBlockHash(5232);
+    console.log("getBlockRes", getBlockRes);
+
+    const getBlockHashRes = await getBlock(getBlockRes);
+    console.log("getBlockHashRes", getBlockHashRes);
+
+    const res = await scanTxOutSet(
+      "bcrt1pcxe5p7krnpyfvnj3vkks7dnrc2ah9h9tn4paurry2qflcmcu5nkq7vfk4y" || ""
+    );
+
+    console.log("res", res);
+  } catch (err: any) {
+    throw new Error(err);
+  }
+};
+
+export const checkTxStatusHelper = async (txId: string) => {
+  try {
+    const txStatus = await getRawTransaction(txId);
+    console.log("Transaction Status:", JSON.stringify(txStatus, null, 2));
+  } catch (err: any) {
+    throw new Error(err);
+  }
+};
 export const sendFundsTest = async () => {
   try {
+    const p2wsh = getP2WSH(DEPOSIT_SEED_PHRASE);
+    if (!p2wsh.address) throw new Error("no address");
+
     const genTo = await generateToAddress({
-      address: CURRENT_WORKING_WALLET,
+      address: p2wsh.address,
       nblocks: 101,
     });
 

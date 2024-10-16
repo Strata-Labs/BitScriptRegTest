@@ -28,6 +28,10 @@ enum RpcMethods {
   importaddress = "importaddress",
   unloadWallets = "unloadwallets",
   scantxoutset = "scantxoutset",
+  testmempoolaccept = "testmempoolaccept",
+  getblockhash = "getblockhash",
+  getBlock = "getblock",
+  getrawtransaction = "getrawtransaction",
 }
 
 // UTXO type definition
@@ -65,7 +69,7 @@ const rpcHandlerCore = async (method: RpcMethods, params: any) => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     return data.result;
   } catch (err: any) {
     console.log(`rpcHandlerCore ${method} err`);
@@ -234,7 +238,7 @@ export const mineBlock = async (address: string, nblocks: number = 1) => {
 
 // Function to check transaction status
 export const getTransactionStatus = async (txid: string) => {
-  return await rpcHandlerCore(RpcMethods.getTransaction, [txid]);
+  return await rpcHandlerCore(RpcMethods.getTransaction, [txid, false, true]);
 };
 
 export const dumpPrivKey = async (address: string) => {
@@ -286,4 +290,20 @@ export const scanTxOutSet = async (address: string) => {
       },
     ],
   ]);
+};
+
+export const testMempoolAccept = async (rawTx: string) => {
+  return await rpcHandlerCore(RpcMethods.testmempoolaccept, [[rawTx]]);
+};
+
+export const getBlockHash = async (blockHeight: number) => {
+  return await rpcHandlerCore(RpcMethods.getblockhash, [blockHeight]);
+};
+
+export const getBlock = async (blockHash: string) => {
+  return await rpcHandlerCore(RpcMethods.getBlock, [blockHash]);
+};
+
+export const getRawTransaction = async (txid: string) => {
+  return await rpcHandlerCore(RpcMethods.getrawtransaction, [txid, true]);
 };

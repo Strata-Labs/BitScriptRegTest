@@ -41,6 +41,7 @@ import {
   mineBlock,
   sendRawTransaction,
   signRawTransactionWithWallet,
+  testMempoolAccept,
   unloadWallet,
 } from "./rpcCommands";
 import {
@@ -50,7 +51,7 @@ import {
   getP2TR,
   getP2WSH,
   getPrivateKeyFromP2tr,
-  getPrivateKeysFromP2WSH,
+  getPrivateKeysFromSeed,
   privateKeyToWIF,
   uint8ArrayToHexString,
 } from "./wallet";
@@ -59,9 +60,13 @@ import {
   createDepositScriptP2TROutput,
 } from "./depositRequest";
 import {
+  checkTxStatus,
+  checkTxStatusHelper,
+  createP2trAddy,
   importAddressHelper,
   importPrivKeyHelper,
   mineAndCheckId,
+  scanTxOutSetHelper,
   sendFundsTest,
   startUp,
 } from "./walletManagement";
@@ -426,7 +431,7 @@ export const SIGNER_SEED_PHRASE = "SIGNER_SEED_PHRASE";
 export const RECEIVER_SEED_PHRASE = "RECEIVER_SEED_PHRASE";
 const createPTRAddress = async () => {
   try {
-    const privateKey = getPrivateKeysFromP2WSH(DEPOSIT_SEED_PHRASE);
+    const privateKey = getPrivateKeysFromSeed(DEPOSIT_SEED_PHRASE);
 
     const signerInfo = getP2TR(SIGNER_SEED_PHRASE);
     console.log("signerInfo", signerInfo);
@@ -434,7 +439,7 @@ const createPTRAddress = async () => {
     const p2wsh = getP2WSH(DEPOSIT_SEED_PHRASE);
     console.log("p2wsh", p2wsh.pubkey);
     //throw new Error("stop");
-    const p2wshPrivateKeys = getPrivateKeysFromP2WSH(DEPOSIT_SEED_PHRASE);
+    const p2wshPrivateKeys = getPrivateKeysFromSeed(DEPOSIT_SEED_PHRASE);
 
     console.log("testTing", p2wsh.address);
     console.log("p2wshPrivateKeys", p2wshPrivateKeys);
@@ -453,9 +458,9 @@ const createPTRAddress = async () => {
     const senderPrivKeyWIF = privateKeyToWIF(privateKey, network);
     // stx
     const receiverAddress = "051aaf3f91f38aa21ade7e9f95efdbc4201eeb4cf0f8";
-    const amount = 2;
-    const maxFee = 1000;
-    const lockTime = 50;
+    const amount = 10000000;
+    const maxFee = 10000;
+    const lockTime = 25;
 
     // Create and sign the Taproot transaction with deposit and reclaim scripts
     const txHex = await createDepositScriptP2TROutput(
@@ -470,21 +475,39 @@ const createPTRAddress = async () => {
     );
 
     console.log("txHex", txHex);
+    // Broadcast the transaction
+    const decodedTx = await decodeRawTransaction(txHex);
+    console.log("decodedTx", decodedTx);
+    //console.log("jig", JSON.stringify(decodedTx, null, 2));
+    const testTx = await testMempoolAccept(txHex);
+    console.log("testTx", testTx);
+    throw new Error("stop");
+
+    const id = await sendRawTransaction(txHex);
+    console.log("id", id);
+
+    const mineAndCheck = await mineAndCheckId(id);
+    console.log("mineAndCheck", mineAndCheck);
   } catch (err: any) {
     console.error("Error creating PTR address:", err);
     throw new Error(err);
   }
 };
 
-createPTRAddress();
+//createPTRAddress();
 
 //startUp();
 
 //sendFundsTest();
 
 const txIdTing =
-  "f62fa38a977c0f1676b742303e3e14afc84d13b1f6529066527315140e4c4771";
+  "cf9e66c5a154cb39ba18005181488de7924b92cca6f39437e99384a1bdacd23e";
 
 //mineAndCheckId(txIdTing);
 
+//scanTxOutSetHelper();
+
+createP2trAddy(SIGNER_SEED_PHRASE);
+
+//checkTxStatusHelper(txIdTing);
 //importAddressHelper();

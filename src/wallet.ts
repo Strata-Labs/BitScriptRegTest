@@ -142,7 +142,8 @@ export function hexToUint8Array(hexString: string): Uint8Array {
   }
   return bytes;
 }
-export const getPrivateKeysFromP2WSH = (seed: string) => {
+
+export const getPrivateKeysFromSeed = (seed: string) => {
   const root = createWallet(seed);
 
   const path = TAPR00T_DERIVE_PATH;
@@ -151,6 +152,7 @@ export const getPrivateKeysFromP2WSH = (seed: string) => {
 
   return uint8ArrayToHexString(derived.privateKey);
 };
+
 export const getPrivateKeyFromP2tr = (seed: string) => {
   const root = createWallet(seed);
 

@@ -248,6 +248,8 @@ export const createAndSignTaprootTransactionWithScripts = async (
     value: BigInt(amount),
   });
 
+  console.log("totalInput,", totalInput);
+
   // Add change output back to sender if necessary
   const change = totalInput - amount - maxFee;
   if (change > 0) {
@@ -266,7 +268,10 @@ export const createAndSignTaprootTransactionWithScripts = async (
   psbt.finalizeAllInputs();
 
   // Extract the raw transaction
-  const rawTx = psbt.extractTransaction().toHex();
+  const _rawTx = psbt.extractTransaction();
+
+  console.log("rawTx", _rawTx);
+  const rawTx = _rawTx.toHex();
   return rawTx;
 };
 
@@ -291,9 +296,11 @@ export const createDepositScriptP2TROutput = async (
   signerAddress: string
 ) => {
   try {
-    const internalPubkey = hexToUint8Array(
-      "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-    );
+    // const internalPubkey = hexToUint8Array(
+    //   "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+    // );
+
+    const internalPubkey = signersPublicKey;
 
     console.log("bip341,again ", bip341);
     const network = bitcoin.networks.regtest;
@@ -309,7 +316,9 @@ export const createDepositScriptP2TROutput = async (
     const depositScript = Buffer.from(
       createDepositScript(internalPubkey, maxFee, recipientBytes)
     );
-
+    // convert buffer to hex
+    const depositScriptHexPreHash = uint8ArrayToHexString(depositScript);
+    console.log("depositScriptHexPreHash", depositScriptHexPreHash);
     console.log("depositScript", depositScript);
 
     // // Hash the leaf scripts using tapLeafHash
@@ -324,8 +333,8 @@ export const createDepositScriptP2TROutput = async (
     console.log("reclaimScriptHashHex", reclaimScriptHashHex);
     // Combine the leaf hashes into a Merkle root using tapBranch
     const merkleRoot = bip341.toHashTree([
-      { output: reclaimScript },
       { output: depositScript },
+      { output: reclaimScript },
     ]);
     console.log("merkleRoot", merkleRoot);
 
@@ -336,6 +345,7 @@ export const createDepositScriptP2TROutput = async (
     console.log("internalPubkey", internalPubkey);
     // Create the final taproot public key by tweaking internalPubkey with merkleRoot
 
+    console.log("merkleRoot.hash", merkleRoot.hash);
     // Step 1: Generate the tweak
     const tweak = bip341.tapTweakHash(internalPubkey, merkleRoot.hash);
     console.log("tweak", tweak);
@@ -355,8 +365,6 @@ export const createDepositScriptP2TROutput = async (
       network: bitcoin.networks.regtest, // Use the correct network (mainnet or testnet)
     });
 
-    console.log("p2tr", p2tr);
-    console.log("p2tr.redeem.redeemVersion", p2tr.redeemVersion);
     // Validate the output script is correct (P2TR has a specific witness program structure)
     const outputScript = p2tr.output;
     if (outputScript) {
@@ -366,7 +374,8 @@ export const createDepositScriptP2TROutput = async (
     } else {
       console.error("Failed to generate P2TR output.");
     }
-    console.log("P2TR Address:", p2tr.address);
+
+    console.log("p2tr 0x01", p2tr.address);
 
     // Fetch UTXOs for the sender address
     const utxos: any = [];
@@ -377,7 +386,7 @@ export const createDepositScriptP2TROutput = async (
         utxos.push({
           txid: utxo.txid,
           vout: utxo.vout,
-          amount: utxo.amount,
+          amount: BigInt(Math.round(utxo.amount * 100000000)),
           scriptPubKey: utxo.scriptPubKey,
         });
       });
@@ -386,7 +395,7 @@ export const createDepositScriptP2TROutput = async (
     const psbt = new bitcoin.Psbt({ network });
 
     // Add UTXOs as inputs
-    let totalInput = 0;
+    let totalInput = BigInt(0);
     for (const utxo of utxos) {
       const script = Buffer.from(hexToUint8Array(utxo.scriptPubKey));
       psbt.addInput({
@@ -397,22 +406,26 @@ export const createDepositScriptP2TROutput = async (
           value: BigInt(utxo.amount),
         },
       });
-      totalInput += utxo.amount;
-      if (totalInput >= amount + maxFee) break;
+      totalInput += BigInt(utxo.amount);
+      if (totalInput >= BigInt(amount) + BigInt(maxFee)) break;
     }
 
     if (p2tr === undefined && p2tr.address === undefined) {
       throw new Error("Output is undefined");
     }
-    console.log("we made it here");
+
+    console.log("we made it here p2tr", p2tr);
+
     // Add output for the deposit
     psbt.addOutput({
       value: BigInt(amount),
-      script: p2tr.pubkey, // Use the P2TR output script
+      address: p2tr.address, // Use the P2TR output script
     });
 
     // Calculate change and add change output if necessary
-    const change = totalInput - amount - maxFee;
+    const change = BigInt(totalInput) - BigInt(amount) - BigInt(maxFee);
+
+    console.log("change", change);
     if (change > 0) {
       psbt.addOutput({
         address: senderAddress,
@@ -432,8 +445,12 @@ export const createDepositScriptP2TROutput = async (
     // Finalize all inputs
     psbt.finalizeAllInputs();
 
-    // Extract the raw transaction in hex format
-    const rawTx = psbt.extractTransaction().toHex();
+    // Extract the raw transaction
+    const _rawTx = psbt.extractTransaction();
+
+    console.log("rawTx", _rawTx);
+    const rawTx = _rawTx.toHex();
+
     return rawTx;
   } catch (err: any) {
     console.error("createDepositScriptP2TROutput error", err);
