@@ -1,14 +1,5 @@
 import * as bitcoin from "bitcoinjs-lib";
-import * as bip32 from "bip32";
-import {
-  Signer,
-  SignerAsync,
-  ECPairInterface,
-  ECPairFactory,
-  ECPairAPI,
-  TinySecp256k1Interface,
-} from "ecpair";
-import * as crypto from "crypto";
+import { ECPairFactory, ECPairAPI, TinySecp256k1Interface } from "ecpair";
 
 // You need to provide the ECC library. The ECC library must implement
 // all the methods of the `TinySecp256k1Interface` interface.
@@ -16,9 +7,6 @@ const tinysecp: TinySecp256k1Interface = require("tiny-secp256k1");
 const ECPair: ECPairAPI = ECPairFactory(tinysecp);
 
 import {
-  createDescriptorWallet,
-  createInitWallet,
-  createRawTransaction,
   createTaprootAddress,
   createWallet,
   decodeRawTransaction,
@@ -29,47 +17,28 @@ import {
   getBlockChainInfo,
   getNewAddress,
   getNewAddressByLabel,
-  getTransactionStatus,
   getWalletDescriptor,
   getWalletInfo,
   listAddressGroupings,
-  listLabels,
   listTransactions,
   listUnspent,
   listWallets,
   loadWallet,
-  mineBlock,
   sendRawTransaction,
-  signRawTransactionWithWallet,
   testMempoolAccept,
   unloadWallet,
 } from "./rpcCommands";
 import {
   BitcoinNetwork,
   createUnspendableTaprootKey,
-  getP2pkh,
   getP2TR,
   getP2WSH,
-  getPrivateKeyFromP2tr,
   getPrivateKeysFromSeed,
   privateKeyToWIF,
   uint8ArrayToHexString,
 } from "./wallet";
-import {
-  createAndSignTaprootTransactionWithScripts,
-  createDepositScriptP2TROutput,
-} from "./depositRequest";
-import {
-  checkTxStatus,
-  checkTxStatusHelper,
-  createP2trAddy,
-  importAddressHelper,
-  importPrivKeyHelper,
-  mineAndCheckId,
-  scanTxOutSetHelper,
-  sendFundsTest,
-  startUp,
-} from "./walletManagement";
+import { createDepositScriptP2TROutput } from "./depositRequest";
+import { mineAndCheckId } from "./walletManagement";
 
 const startUpFaucet = async () => {
   try {
@@ -77,29 +46,6 @@ const startUpFaucet = async () => {
     const blockChainInfo = await getBlockChainInfo();
 
     console.log("blockChainInfo", blockChainInfo);
-    // assuming it didn't err out then we can prooced
-
-    // create a faucet wallet
-    //const wallet = getP2pkh("faucet");
-
-    // const gen = await generateToAddress({
-    //   address: wallet || "",
-    //   nblocks: 101,
-    // });
-
-    // console.log("gen", gen);
-    // console.log("wallet", wallet);
-    // if (!wallet) throw new Error("no wallet");
-
-    // console.log("wallet", wallet);
-
-    /*
-    // send some coins to the faucet wallet
-    const sendToAddress = await generateToAddress({
-      address: wallet,
-      nblocks: 101,
-    });
-    */
 
     // in order to check how much the faucet have we have to get all the unspent utxos for this from block to  to block
 
@@ -113,22 +59,10 @@ const startUpFaucet = async () => {
       includeWatchOnly: true, // Include watch-only addresses
     });
     console.log("transactions", transactions);
-    /*
-    const listunspent = await listUnspent({
-      minconf: 0,
-      maxconf: 9999999,
-      addresses: [wallet],
-    });
-
-    console.log("listunspent", listunspent);
-    */
-    //console.log("sendToAddress", sendToAddress);
   } catch (err: any) {
     throw new Error(err);
   }
 };
-
-//startUpFaucet();
 
 const createMasterWallet = async () => {
   try {
@@ -318,18 +252,6 @@ const getTotalBalanceForAddress = async (address: string): Promise<number> => {
 //getTotalBalanceForAddress(loadedWalletAddress);
 //getTotalBalanceForAddress(secondWallet);
 
-const generateTaprootAddress = (privKeyWIF: string): string => {
-  const network = bitcoin.networks.regtest;
-  const keyPair = ECPair.fromWIF(privKeyWIF, network);
-
-  const { address } = bitcoin.payments.p2tr({
-    pubkey: keyPair.publicKey,
-    network,
-  });
-
-  return address!;
-};
-
 const sendTaprootTransactionWithScripts = async () => {
   //const senderPrivKeyWIF = 'your-private-key-wif';
 
@@ -494,7 +416,7 @@ const createPTRAddress = async () => {
   }
 };
 
-//createPTRAddress();
+createPTRAddress();
 
 //startUp();
 
@@ -507,7 +429,7 @@ const txIdTing =
 
 //scanTxOutSetHelper();
 
-createP2trAddy(SIGNER_SEED_PHRASE);
+//createP2trAddy(SIGNER_SEED_PHRASE);
 
 //checkTxStatusHelper(txIdTing);
 //importAddressHelper();

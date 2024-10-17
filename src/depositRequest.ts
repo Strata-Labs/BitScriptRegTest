@@ -285,6 +285,15 @@ type DepositRequest = {
   senderAddress: string;
 };
 
+// convert uint8array to buffer
+const uint8ArrayToBuffer = (uint8Array: Uint8Array) => {
+  return Buffer.from(uint8Array);
+};
+
+function toXOnly(pubkey: Buffer): Buffer {
+  return pubkey.subarray(1, 33);
+}
+
 export const createDepositScriptP2TROutput = async (
   senderPrivKeyWIF: string,
   stxDepositAddress: string,
@@ -300,7 +309,26 @@ export const createDepositScriptP2TROutput = async (
     //   "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
     // );
 
-    const internalPubkey = signersPublicKey;
+    /* 
+      couple steps that make this up - going try to detail in chapters sort of language 
+      1. create the reclaim script
+      2. create the deposit script
+      3. hash the leaf scripts using toHashTree
+      4. create an internal public key (tapTweakHash)
+      5. create the taprootPubKey 
+      6. create the pt2r payment object
+      7 basic validation for the payment object
+      8. fetch UTXOs for the sender address
+      9. add UTXOs as inputs based on the amount being sent
+      10. add output for the deposit
+      11. calculate a change output if needed
+      12. sign and finalize the inputs
+      13. extract the raw transaction
+
+    */
+    const internalPubkey = hexToUint8Array(
+      "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+    );
 
     console.log("bip341,again ", bip341);
     const network = bitcoin.networks.regtest;
@@ -309,6 +337,9 @@ export const createDepositScriptP2TROutput = async (
     const reclaimScript = Buffer.from(
       createReclaimScript(lockTime, new Uint8Array([]))
     );
+
+    const reclaimScriptHex = uint8ArrayToHexString(reclaimScript);
+    console.log("reclaimScriptHex", reclaimScriptHex);
 
     // Create the deposit script and convert to Buffer
     console.log("stxDepositAddress", stxDepositAddress);
@@ -336,6 +367,16 @@ export const createDepositScriptP2TROutput = async (
       { output: depositScript },
       { output: reclaimScript },
     ]);
+
+    const scriptTree: Taptree = [
+      {
+        output: depositScript,
+      },
+      {
+        output: reclaimScript,
+      },
+    ];
+
     console.log("merkleRoot", merkleRoot);
 
     const merkleRootHex = uint8ArrayToHexString(merkleRoot.hash);
@@ -361,10 +402,12 @@ export const createDepositScriptP2TROutput = async (
 
     // Step 1: Convert the Taproot public key to a P2TR address
     const p2tr: any = bitcoin.payments.p2tr({
-      pubkey: taprootPubKey.x, // The tweaked Taproot public key
+      internalPubkey: internalPubkey, // The tweaked Taproot public key
       network: bitcoin.networks.regtest, // Use the correct network (mainnet or testnet)
+      scriptTree: scriptTree,
     });
 
+    // key: toXOnly(keypair.publicKey),
     // Validate the output script is correct (P2TR has a specific witness program structure)
     const outputScript = p2tr.output;
     if (outputScript) {

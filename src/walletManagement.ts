@@ -210,14 +210,7 @@ export const checkTxStatus = async (txId: string) => {
 
 export const createP2trAddy = async (seed: string) => {
   try {
-    const network: BitcoinNetwork = "regtest";
-
-    const privateKey = getPrivateKeysFromSeed(SIGNER_SEED_PHRASE);
-
-    const senderPrivKeyWIF = privateKeyToWIF(privateKey, network);
     const _network = bitcoin.networks.regtest;
-
-    const keyPair = ECPair.fromWIF(senderPrivKeyWIF, _network);
 
     const getP2TRRes = getP2TR(SIGNER_SEED_PHRASE);
 
@@ -242,6 +235,15 @@ export const createP2trAddy = async (seed: string) => {
     });
 
     console.log("P2TR Address:", p2tr.address);
+
+    const res = await scanTxOutSet(p2tr.address || "");
+    console.log("res", res);
+
+    for await (const tx of res.unspents) {
+      console.log("tx", tx);
+      const status = await checkTxStatusHelper(tx.txid);
+      console.log("status", status);
+    }
   } catch (err: any) {
     throw new Error(err);
   }
@@ -264,6 +266,7 @@ export const scanTxOutSetHelper = async () => {
     );
 
     console.log("res", res);
+    // create a async loop that checks that info of the transaction via checkTxStatusHelper
   } catch (err: any) {
     throw new Error(err);
   }
@@ -273,6 +276,7 @@ export const checkTxStatusHelper = async (txId: string) => {
   try {
     const txStatus = await getRawTransaction(txId);
     console.log("Transaction Status:", JSON.stringify(txStatus, null, 2));
+    return txStatus;
   } catch (err: any) {
     throw new Error(err);
   }
